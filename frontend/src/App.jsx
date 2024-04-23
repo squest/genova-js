@@ -1,35 +1,68 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { Suspense, useEffect } from 'react';
+import { useRecoilState } from 'recoil';
+import { authState } from './states/credential'; // Define your auth state in Recoil
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import axios from 'axios';
+import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Auth initializer
+function useInitializeAuth() {
+  const [auth, setAuth] = useRecoilState(authState);
 
-  return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+  useEffect(() => {
+    const credentials = localStorage.getItem('userCredentials');
+    if (credentials) {
+      axios.post('/api/validate', { token: credentials })
+        .then(response => {
+          if (response.data.valid) {
+            setAuth({ isAuthenticated: true, user: response.data.user });
+          } else {
+            localStorage.removeItem('userCredentials');
+            setAuth({ isAuthenticated: false });
+          }
+        })
+        .catch(() => setAuth({ isAuthenticated: false }));
+    }
+  }, [setAuth]);
 }
 
-export default App
+// App component
+const App = () => {
+  useInitializeAuth();
+  const router = createBrowserRouter([
+    {
+      path: "/",
+      element: (
+        <AuthGuard>
+          <HomePage />
+        </AuthGuard>
+      ),
+    },
+    {
+      path: "/login",
+      element: <LoginPage />,
+    },
+    // Define other routes and wrap with AuthGuard if needed
+  ]);
+
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RouterProvider router={router} />
+    </Suspense>
+  );
+};
+
+// AuthGuard component
+const AuthGuard = ({ children }) => {
+  const [auth] = useRecoilState(authState);
+
+  if (!auth.isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  return children;
+};
+
+
+
