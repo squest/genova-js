@@ -5,13 +5,34 @@ import {
   userByEmail,
   updateUser,
   silentLogin,
-  ssoLogin,
+  login,
+  token
 } from "./user.js";
 
 export default async function userRoutes(fastify, options) {
   fastify.get("/", async (request, reply) => {
     return { message: "This is coming from user routes" };
   });
+
+  fastify.post("/token", async (request, reply) => {
+    const userToken = request.body.token;
+    console.log(request.body);
+    if (await token(userToken)) {
+      const user = {
+        email: "sabdaps@gmail.com",
+        name: "Sabda PS"
+      }
+      return {
+        status : "ok",
+        user : user
+      }
+    } else {
+      return {
+        status : "error",
+        message : "Token invalid cuy"
+      }
+    }
+  })
 
   // Routes for user management
   fastify.get("/all", async (request, reply) => {
@@ -43,9 +64,9 @@ export default async function userRoutes(fastify, options) {
     return result;
   });
 
-  fastify.post("/ssoLogin", async (request, reply) => {
-    const { email } = request.body;
-    const result = await ssoLogin(options.db, { email });
+  fastify.post("/login", async (request, reply) => {
+    const { email , password } = request.body;
+    const result = await login(options.db, { email , password });
     return result;
   });
 

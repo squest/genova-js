@@ -1,5 +1,4 @@
 import { v4 as uuid } from "uuid";
-import jwt from "jsonwebtoken";
 
 async function createColl(db) {
   return db.collection("users");
@@ -66,17 +65,9 @@ export async function silentLogin(db, { email, token }) {
             returnOriginal: false,
           }
         );
-        const jwtToken = jwt.sign(
-          { sub: tbuUser._id, role: tbuUser.role },
-          process.env.JWT_SECRET_KEY,
-          {
-            expiresIn: "30d",
-          }
-        );
         return {
           status: "ok",
           message: "Successfully login",
-          token: jwtToken,
         };
       }
     } else {
@@ -90,37 +81,35 @@ export async function silentLogin(db, { email, token }) {
   }
 }
 
-export async function ssoLogin(db, user) {
+export async function login(db, user) {
   const coll = await createColl(db);
+  console.log(user);
   try {
     const dbUser = await coll.findOne({ email: user.email });
     if (dbUser) {
-      if (dbUser.approved) {
-        const jwtToken = jwt.sign(
-          { sub: dbUser._id, role: dbUser.role },
-          process.env.JWT_SECRET_KEY,
-          {
-            expiresIn: "30d",
-          }
-        );
-        return {
-          status: "success",
-          message: "User found and authorised",
-          user: dbUser,
-          token: jwtToken,
-        };
+      if (dbUser.password === user.password) {
+        if (dbUser.approved) {
+          return {
+            status: "success",
+            message: "User found and authorised",
+            user: dbUser,
+          };
+        } else {
+          return {
+            status: "waiting",
+            message: "User found but not approved yet",
+          };
+        }
       } else {
         return {
-          status: "waiting",
-          message: "User found but not approved yet",
+          status: "error",
+          message: "Password incorrect",
         };
       }
     } else {
-      const tbaUser = await addUser(user);
       return {
-        status: "waiting",
-        message: "User has been registered, waiting for approval",
-        user: tbaUser,
+        status: "error",
+        message: "User not found",
       };
     }
   } catch (e) {
@@ -142,6 +131,10 @@ export async function updateUser(db, email, user) {
   } catch (e) {
     console.error(e);
   }
+}
+
+export async function token(token) {
+  return (token === "IntegralKodong");
 }
 
 // Path: src/backend/plumbings/database.js
